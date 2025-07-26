@@ -1,0 +1,51 @@
+# You are building the backend for a GTD (Getting Things Done) productivity app using Django REST Framework and MySQL.
+# The goal is to provide a simple MVP with task and group management features.
+# No authentication is needed at this stage.
+# The project is already created with an app called `core`.
+
+# The app should include the following models:
+
+# 1. Task
+#    - title (CharField)
+#    - description (TextField)
+#    - due_date (DateTimeField, optional)
+#    - completed (BooleanField, default=False)
+#    - created_at (DateTimeField, auto_now_add=True)
+#    - updated_at (DateTimeField, auto_now=True)
+#    - group (ForeignKey to Group, null=True, blank=True, on_delete=SET_NULL)
+
+# 2. Group
+#    - name (CharField)
+#    - description (TextField, optional)
+#    - created_at (DateTimeField, auto_now_add=True)
+
+# Build the following:
+
+# === Models ===
+# Define the models described above.
+
+# === Serializers ===
+# Create serializers for Task and Group.
+
+# === Views ===
+# Use DRF viewsets (ModelViewSet) for Task and Group with full CRUD support.
+
+# === Routes ===
+# Use DRF router to register both viewsets in the `core/urls.py`.
+
+# Do not include any authentication, permissions, or throttling.
+
+# Follow Django best practices and make sure the code is clean and minimal.
+
+# Assume this structure:
+# GTD/
+# ├── core/
+# │   ├── models.py
+# │   ├── serializers.py
+# │   ├── views.py
+# │   ├── urls.py
+# │   └── admin.py
+# └manage.py
+# └── urls.py
+
+# Now, start writing the code for models.py
