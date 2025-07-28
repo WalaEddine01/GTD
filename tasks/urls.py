@@ -6,6 +6,8 @@ router = DefaultRouter()
 router.register(r'tasks', TaskViewSet, basename='task')
 router.register(r'groups', GroupViewSet, basename='group')
 router.register(r'users', UserViewSet)
+router.register(r'users/profile', UserViewSet, basename='user-profile')
+
 
 urlpatterns = [
     path('', include(router.urls)),

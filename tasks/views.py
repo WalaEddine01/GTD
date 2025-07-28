@@ -14,31 +14,31 @@ class UserViewSet(viewsets.ModelViewSet):
     """
     queryset = User.objects.all()
     serializer_class = UserSerializer
-    permission_classes = [AllowAny]  # Temporarily allow all for testing
 
     def get_permissions(self):
         """
         Allow user creation (registration) and listing without authentication for testing,
         but require authentication for other operations.
         """
-        if self.action in ['create', 'list']:  # Allow list for testing
+        if self.action in ['create']:
             permission_classes = [AllowAny]
         else:
             permission_classes = [IsAuthenticated]
         return [permission() for permission in permission_classes]
     
     def get_queryset(self):
-        """Users can see all users for testing, or only their own profile when authenticated"""
-        if self.request.user.is_authenticated:
-            if self.request.user.is_superuser:
-                return User.objects.all()
-            return User.objects.filter(id=self.request.user.id)
-        else:
-            # For testing without authentication, show all users (excluding passwords)
-            return User.objects.all()
+        """
+        - Superuser: Can see all users
+        - Regular users: Can see all users (as per your requirement)
+        - Unauthenticated: No access
+        """
+        if not self.request.user.is_authenticated:
+            return User.objects.none()
+        
+        return User.objects.all().order_by('id')
 
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
-    def me(self, request):
+    def profile(self, request):
         """Get current user's profile"""
         serializer = self.get_serializer(request.user)
         return Response(serializer.data)
@@ -50,32 +50,64 @@ class GroupViewSet(viewsets.ModelViewSet):
     Users can only see and manage their own groups.
     """
     serializer_class = GroupSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        """Filter groups to only show user's own groups or all groups if not authenticated"""
-        if self.request.user.is_authenticated:
-            return Group.objects.filter(owner=self.request.user)
+        """
+        - Superuser: Can see all groups
+        - Regular users: Can see all groups (as per your requirement)
+        - Unauthenticated: No access (handled by permission_classes)
+        """
+        if self.request.user.is_superuser:
+            return Group.objects.all()
         else:
-            # For testing without authentication, show all groups
             return Group.objects.all()
 
     def perform_create(self, serializer):
         """Set the owner to the current user when creating a group"""
         if self.request.user.is_authenticated:
             serializer.save(owner=self.request.user)
-        else:
-            # For testing, use the first user or create one
-            user = User.objects.first()
-            if not user:
-                user = User.objects.create_user(username='testuser', password='testpass123')
-            serializer.save(owner=user)
+
+    def get_permissions(self):
+        """
+        - Superuser: Can perform all operations on all groups
+        - Regular users: Can view all groups, but only create/update/delete their own
+        """
+        permission_classes = [IsAuthenticated]
+        return [permission() for permission in permission_classes]
+
+    def update(self, request, *args, **kwargs):
+        """Only allow users to update their own groups (unless superuser)"""
+        group = self.get_object()
+        if not request.user.is_superuser and group.owner != request.user:
+            return Response(
+                {"detail": "You can only update your own groups."}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        return super().update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        """Only allow users to delete their own groups (unless superuser)"""
+        group = self.get_object()
+        if not request.user.is_superuser and group.owner != request.user:
+            return Response(
+                {"detail": "You can only delete your own groups."}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        return super().destroy(request, *args, **kwargs)
 
     @action(detail=True, methods=['get'])
     def tasks(self, request, pk=None):
         """Get all tasks for a specific group"""
         group = self.get_object()
-        tasks = Task.objects.filter(group=group)
+        
+        if request.user.is_superuser:
+            # Superuser can see all tasks in any group
+            tasks = Task.objects.filter(group=group)
+        else:
+            # Regular users can only see their own tasks in the group
+            tasks = Task.objects.filter(group=group, owner=request.user)
+        
         serializer = TaskSerializer(tasks, many=True)
         return Response(serializer.data)
 
@@ -86,31 +118,54 @@ class TaskViewSet(viewsets.ModelViewSet):
     Users can only see and manage their own tasks.
     """
     serializer_class = TaskSerializer
-    permission_classes = [AllowAny]  # Temporarily allow all
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        """Filter tasks to only show user's own tasks or all tasks if not authenticated"""
-        if self.request.user.is_authenticated:
-            return Task.objects.filter(owner=self.request.user)
-        else:
-            # For testing without authentication, show all tasks
+        """
+        - Superuser: Can see all tasks
+        - Regular users: Can see only their own tasks
+        - Unauthenticated: No access (handled by permission_classes)
+        """
+        if self.request.user.is_superuser:
             return Task.objects.all()
+        else:
+            # Regular users can only see their own tasks
+            return Task.objects.filter(owner=self.request.user)
 
     def perform_create(self, serializer):
         """Set the owner to the current user when creating a task"""
-        if self.request.user.is_authenticated:
-            serializer.save(owner=self.request.user)
-        else:
-            # For testing, use the first user or create one
-            user = User.objects.first()
-            if not user:
-                user = User.objects.create_user(username='testuser', password='testpass123')
-            serializer.save(owner=user)
+        serializer.save(owner=self.request.user)
+
+    def update(self, request, *args, **kwargs):
+        """Only allow users to update their own tasks (unless superuser)"""
+        task = self.get_object()
+        if not request.user.is_superuser and task.owner != request.user:
+            return Response(
+                {"detail": "You can only update your own tasks."}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        return super().update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        """Only allow users to delete their own tasks (unless superuser)"""
+        task = self.get_object()
+        if not request.user.is_superuser and task.owner != request.user:
+            return Response(
+                {"detail": "You can only delete your own tasks."}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        return super().destroy(request, *args, **kwargs)
 
     @action(detail=True, methods=['post'])
     def toggle_completed(self, request, pk=None):
         """Toggle the completed status of a task"""
         task = self.get_object()
+        if not request.user.is_superuser and task.owner != request.user:
+            return Response(
+                {"detail": "You can only toggle your own tasks."}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
         task.completed = not task.completed
         task.save()
         serializer = self.get_serializer(task)

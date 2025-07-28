@@ -9,7 +9,11 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'first_name', 'last_name', 'password', 'date_joined']
-        read_only_fields = ['id', 'date_joined']
+        extra_kwargs = {
+            'password': {'write_only': True},
+            'date_joined': {'read_only': True},
+            'id': {'read_only': True}
+        }
         
     def create(self, validated_data):
         password = validated_data.pop('password')
