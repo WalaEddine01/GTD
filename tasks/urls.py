@@ -1,11 +1,13 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import TaskViewSet, GroupViewSet
+from .views import TaskViewSet, GroupViewSet, UserViewSet
 
 router = DefaultRouter()
-router.register(r'tasks', TaskViewSet)
-router.register(r'groups', GroupViewSet)
+router.register(r'tasks', TaskViewSet, basename='task')
+router.register(r'groups', GroupViewSet, basename='group')
+router.register(r'users', UserViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
+    path('auth/', include('rest_framework.urls')),  # DRF login/logout views
 ]
